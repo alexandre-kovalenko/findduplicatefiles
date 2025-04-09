@@ -43,9 +43,18 @@ func main() {
 
 // //////////////////////////////////////////////////////////////////////////////////
 // Process duplicate files
+const PREFIX = "/eBooks/eBooks"
+
 func processDuplicates(duplicates []string) error {
 	for _, f := range duplicates {
-		log.Printf("%s\n", f)
+		// Remove the duplicates with the given prefix
+		if len(f) >= len(PREFIX) && f[0:len(PREFIX)] == PREFIX {
+			log.Printf("Removing %s\n", f)
+			err := os.Remove(f)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
