@@ -2,13 +2,14 @@ package FileUnit
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
 )
 
 type FileUnit struct {
-	FileName string
+	Name     string
 	Checksum []byte
 }
 
@@ -27,7 +28,7 @@ func MakeFileUnit(filename string) (FileUnit, error) {
 	}
 
 	return FileUnit{
-		FileName: filename,
+		Name:     filename,
 		Checksum: hash.Sum(nil),
 	}, nil
 }
@@ -35,9 +36,15 @@ func MakeFileUnit(filename string) (FileUnit, error) {
 // ///////////////////////////////////////////////////////////////////////////////
 // Make string representation of the file unit
 func (f FileUnit) ToString() string {
-	result := f.FileName + ": 0x"
+	result := f.Name + ": 0x"
 	for _, b := range f.Checksum {
 		result += fmt.Sprintf("%02x", int(b)&0xFF)
 	}
 	return result
+}
+
+// /////////////////////////////////////////////////////////////////////////////////
+// Get base 64 encoded checksum for representation purposes
+func (f FileUnit) GetEncodedChecksum() string {
+	return base64.URLEncoding.EncodeToString(f.Checksum)
 }
