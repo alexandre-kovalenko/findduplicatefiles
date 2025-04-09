@@ -13,7 +13,10 @@ func main() {
 		return
 	}
 	rootDirectory := os.Args[1]
-	dUnits, err := DirectoryUnit.MakeDirectoryUnits(rootDirectory)
+	ch := make(chan DirectoryUnit.MakeDirectoryUnitsResult)
+	go DirectoryUnit.MakeDirectoryUnits(rootDirectory, ch)
+	mdu := <-ch
+	dUnits, err := mdu.DirectoryUnits, mdu.Error
 	if err != nil {
 		log.Printf("Failed to enumerate %s (%v)\n", rootDirectory, err)
 		os.Exit(-1)
@@ -48,13 +51,14 @@ const PREFIX = "/eBooks/eBooks"
 func processDuplicates(duplicates []string) error {
 	for _, f := range duplicates {
 		// Remove the duplicates with the given prefix
-		if len(f) >= len(PREFIX) && f[0:len(PREFIX)] == PREFIX {
-			log.Printf("Removing %s\n", f)
-			err := os.Remove(f)
-			if err != nil {
-				return err
-			}
-		}
+		// if len(f) >= len(PREFIX) && f[0:len(PREFIX)] == PREFIX {
+		// 	log.Printf("Removing %s\n", f)
+		//  err := os.Remove(f)
+		//  if err != nil {
+		// 	 	return err
+		// 	}
+		// }
+		log.Println(f)
 	}
 	return nil
 }
