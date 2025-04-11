@@ -13,6 +13,11 @@ type FileUnit struct {
 	Checksum []byte
 }
 
+const (
+	// Size of the buffer to use with io.Copybuffer
+	IO_BUFFER_SIZE = 4 * 1024 * 1024
+)
+
 // /////////////////////////////////////////////////////////////////////////////
 // Make new file unit
 func MakeFileUnit(filename string) (FileUnit, error) {
@@ -23,7 +28,8 @@ func MakeFileUnit(filename string) (FileUnit, error) {
 	defer file.Close()
 
 	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	buffer := make([]byte, IO_BUFFER_SIZE)
+	if _, err := io.CopyBuffer(hash, file, buffer); err != nil {
 		return FileUnit{}, err
 	}
 
