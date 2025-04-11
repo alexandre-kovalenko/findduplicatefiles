@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"rabbitsden.online/FindDuplicateFiles/DirectoryUnit"
 )
@@ -12,6 +13,7 @@ func main() {
 		log.Printf("Usage: %s <directory>\n", os.Args[0])
 		return
 	}
+	startTS := time.Now()
 	rootDirectory := os.Args[1]
 	ch := make(chan DirectoryUnit.MakeDirectoryUnitsResult)
 	go DirectoryUnit.MakeDirectoryUnits(rootDirectory, ch)
@@ -22,9 +24,11 @@ func main() {
 		os.Exit(-1)
 	}
 	csMap := make(map[string][]string)
+	filesProcessed := 0
 	for _, du := range dUnits {
 		for _, f := range du.PlainFiles {
 			eSum := f.GetEncodedChecksum()
+			filesProcessed++
 			if _, ok := csMap[eSum]; ok {
 				csMap[eSum] = append(csMap[eSum], f.Name)
 			} else {
@@ -42,6 +46,10 @@ func main() {
 			log.Println("==================")
 		}
 	}
+	endTS := time.Now()
+	elapsedMS := endTS.Sub(startTS).Milliseconds()
+	log.Printf("Processed %d files in %d ms (%.2f files/s)\n", filesProcessed, elapsedMS,
+		float64(filesProcessed)/(float64(elapsedMS)/1000))
 }
 
 // //////////////////////////////////////////////////////////////////////////////////
