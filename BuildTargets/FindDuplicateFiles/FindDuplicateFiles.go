@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"runtime"
 	"time"
 
 	"rabbitsden.online/FindDuplicateFiles/DirectoryUnit"
@@ -13,6 +14,9 @@ func main() {
 		log.Printf("Usage: %s <directory>\n", os.Args[0])
 		return
 	}
+	// Since we are heavily I/O bound, let's schedule 8 goroutines per core
+	runtime.GOMAXPROCS(runtime.NumCPU() * 8)
+	log.Printf("Running on %d cores, max procs is: %d\n", runtime.NumCPU(), runtime.GOMAXPROCS(0))
 	startTS := time.Now()
 	rootDirectory := os.Args[1]
 	ch := make(chan DirectoryUnit.MakeDirectoryUnitsResult)
@@ -48,6 +52,7 @@ func main() {
 	}
 	endTS := time.Now()
 	elapsedMS := endTS.Sub(startTS).Milliseconds()
+	log.Printf("Running on %d cores, max procs is: %d\n", runtime.NumCPU(), runtime.GOMAXPROCS(0))
 	log.Printf("Processed %d files in %d ms (%.2f files/s)\n", filesProcessed, elapsedMS,
 		float64(filesProcessed)/(float64(elapsedMS)/1000))
 }

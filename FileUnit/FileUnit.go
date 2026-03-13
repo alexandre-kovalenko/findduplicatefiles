@@ -13,30 +13,44 @@ type FileUnit struct {
 	Checksum []byte
 }
 
+type MakeFileUnitResult struct {
+	FileUnit FileUnit
+	Error    error
+}
+
 const (
 	// Size of the buffer to use with io.Copybuffer
-	IO_BUFFER_SIZE = 4 * 1024 * 1024
+	IO_BUFFER_SIZE = 1024 * 1024
 )
 
 // /////////////////////////////////////////////////////////////////////////////
 // Make new file unit
-func MakeFileUnit(filename string) (FileUnit, error) {
+func MakeFileUnit(filename string, ch chan MakeFileUnitResult) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return FileUnit{}, err
+		ch <- MakeFileUnitResult{
+			FileUnit: FileUnit{},
+			Error:    err,
+		}
 	}
 	defer file.Close()
 
 	hash := sha256.New()
 	buffer := make([]byte, IO_BUFFER_SIZE)
 	if _, err := io.CopyBuffer(hash, file, buffer); err != nil {
-		return FileUnit{}, err
+		ch <- MakeFileUnitResult{
+			FileUnit: FileUnit{},
+			Error:    err,
+		}
 	}
 
-	return FileUnit{
-		Name:     filename,
-		Checksum: hash.Sum(nil),
-	}, nil
+	ch <- MakeFileUnitResult{
+		FileUnit: FileUnit{
+			Name:     filename,
+			Checksum: hash.Sum(nil),
+		},
+		Error: nil,
+	}
 }
 
 // ///////////////////////////////////////////////////////////////////////////////
