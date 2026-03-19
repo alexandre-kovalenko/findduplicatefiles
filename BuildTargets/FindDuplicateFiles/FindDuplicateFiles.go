@@ -1,27 +1,34 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"runtime"
 	"time"
 
+	"rabbitsden.online/FindDuplicateFiles/Constants"
 	"rabbitsden.online/FindDuplicateFiles/DirectoryUnit"
+	"rabbitsden.online/FindDuplicateFiles/UnitLimiter"
 )
 
+var resultFilename string
+
 func main() {
-	if len(os.Args) != 2 {
-		log.Printf("Usage: %s <directory>\n", os.Args[0])
+	if (len(os.Args) != 2) && (len(os.Args) != 3) {
+		log.Printf("Usage: %s <directory> [<result filename>]\n", os.Args[0])
 		return
+	}
+	if len(os.Args) == 3 {
+		resultFilename = os.Args[2]
 	}
 	// Since we are heavily I/O bound, let's schedule 8 goroutines per core
 	runtime.GOMAXPROCS(runtime.NumCPU() * 8)
 	log.Printf("Running on %d cores, max procs is: %d\n", runtime.NumCPU(), runtime.GOMAXPROCS(0))
 	startTS := time.Now()
 	rootDirectory := os.Args[1]
-	ch := make(chan DirectoryUnit.MakeDirectoryUnitsResult)
-	go DirectoryUnit.MakeDirectoryUnits(rootDirectory, ch)
-	mdu := <-ch
+	fl := UnitLimiter.MakeUnitLimiter(1000, "file")
+	mdu := DirectoryUnit.MakeDirectoryUnits(rootDirectory, &fl)
 	dUnits, err := mdu.DirectoryUnits, mdu.Error
 	if err != nil {
 		log.Printf("Failed to enumerate %s (%v)\n", rootDirectory, err)
@@ -59,19 +66,29 @@ func main() {
 
 // //////////////////////////////////////////////////////////////////////////////////
 // Process duplicate files
-const PREFIX = "/eBooks/eBooks"
 
 func processDuplicates(duplicates []string) error {
+	separateResultFile := false
+	var fh *os.File
+	var err error
+	if len(resultFilename) > 0 {
+		fh, err = os.OpenFile(resultFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return err
+		}
+		separateResultFile = true
+		fmt.Fprintln(fh, Constants.BLOCK_SEPARATOR)
+	}
+	defer func() {
+		if separateResultFile {
+			fh.Close()
+		}
+	}()
 	for _, f := range duplicates {
-		// Remove the duplicates with the given prefix
-		// if len(f) >= len(PREFIX) && f[0:len(PREFIX)] == PREFIX {
-		// 	log.Printf("Removing %s\n", f)
-		//  err := os.Remove(f)
-		//  if err != nil {
-		// 	 	return err
-		// 	}
-		// }
 		log.Println(f)
+		if separateResultFile {
+			fmt.Fprintf(fh, "%s\n", f)
+		}
 	}
 	return nil
 }

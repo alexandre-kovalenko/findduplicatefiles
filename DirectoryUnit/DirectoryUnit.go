@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"rabbitsden.online/FindDuplicateFiles/FileUnit"
+	"rabbitsden.online/FindDuplicateFiles/UnitLimiter"
 )
 
 type DirectoryUnit struct {
@@ -34,8 +35,7 @@ const IGNORE_DOT_FILES = false
 // /////////////////////////////////////////////////////////////////////////////
 // Creates collection of directory units for the specified directory and all
 // subdirectories.
-func MakeDirectoryUnits(name string, ch chan MakeDirectoryUnitsResult) {
-	dirCallList := make([]DirCallList, 0)
+func MakeDirectoryUnits(name string, fl *UnitLimiter.Limiter) MakeDirectoryUnitsResult {
 	fileCallList := make([]FileCallList, 0)
 	result := make(map[string]DirectoryUnit)
 	myUnit := DirectoryUnit{Name: name}
@@ -44,24 +44,29 @@ func MakeDirectoryUnits(name string, ch chan MakeDirectoryUnitsResult) {
 	entries, err := os.ReadDir(name)
 	if err != nil {
 		message := fmt.Sprintf("Error reading directory %s (%v)", name, err)
+		log.Panicln(message)
 		log.Println(message)
-		ch <- MakeDirectoryUnitsResult{nil, errors.New(message)}
+		return MakeDirectoryUnitsResult{nil, errors.New(message)}
 	}
 	for _, e := range entries {
 		if IGNORE_DOT_FILES && e.Name()[0] == '.' {
 			continue
 		}
 		if e.IsDir() {
-			subCh := make(chan MakeDirectoryUnitsResult)
 			subName := name + "/" + e.Name()
 			log.Printf("Recursing into %s\n", subName)
-			dirCallList = append(dirCallList, DirCallList{name, subCh})
-			go MakeDirectoryUnits(subName, subCh)
+			subMDU := MakeDirectoryUnits(subName, fl)
+			if subMDU.Error != nil {
+				return MakeDirectoryUnitsResult{nil, subMDU.Error}
+			}
+			for k, v := range subMDU.DirectoryUnits {
+				result[k] = v
+			}
 		} else {
 			fullPath := name + "/" + e.Name()
 			subCh := make(chan FileUnit.MakeFileUnitResult)
 			fileCallList = append(fileCallList, FileCallList{fullPath, subCh})
-			go FileUnit.MakeFileUnit(fullPath, subCh)
+			go FileUnit.MakeFileUnit(fullPath, subCh, fl)
 		}
 	}
 	///////////////////////////////////////////////////////////////////////////
@@ -73,26 +78,11 @@ func MakeDirectoryUnits(name string, ch chan MakeDirectoryUnitsResult) {
 		if err != nil {
 			message := fmt.Sprintf("Error reading file %s (%v)", fullPath, err)
 			log.Println(message)
-			ch <- MakeDirectoryUnitsResult{nil, errors.New(message)}
+			return MakeDirectoryUnitsResult{nil, errors.New(message)}
 		}
 		myUnit.PlainFiles = append(myUnit.PlainFiles, fu)
 		close(cl.ch)
 	}
-	///////////////////////////////////////////////////////////////////////////
-	// At this point goroutines for every subdirectory have been started, so
-	// we need to wait for them and fold the results into overall result.
-	for _, cl := range dirCallList {
-		subMDU := <-cl.ch
-		if subMDU.Error != nil {
-			ch <- MakeDirectoryUnitsResult{nil, subMDU.Error}
-		}
-		for k, v := range subMDU.DirectoryUnits {
-			result[k] = v
-		}
-		close(cl.ch)
-	}
-	//
-	///////////////////////////////////////////////////////////////////////////
 	result[name] = myUnit
-	ch <- MakeDirectoryUnitsResult{result, nil}
+	return MakeDirectoryUnitsResult{result, nil}
 }

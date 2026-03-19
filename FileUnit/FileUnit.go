@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"rabbitsden.online/FindDuplicateFiles/UnitLimiter"
 )
 
 type FileUnit struct {
@@ -25,25 +27,34 @@ const (
 
 // /////////////////////////////////////////////////////////////////////////////
 // Make new file unit
-func MakeFileUnit(filename string, ch chan MakeFileUnitResult) {
+func MakeFileUnit(filename string, ch chan MakeFileUnitResult, l *UnitLimiter.Limiter) {
+	l.Acquire()
+	// log.Printf("Acquired counter for file '%s'\n", filename)
 	file, err := os.Open(filename)
 	if err != nil {
+		l.Release()
+		// log.Printf("Released counter for file '%s'\n", filename)
 		ch <- MakeFileUnitResult{
 			FileUnit: FileUnit{},
 			Error:    err,
 		}
 	}
-	defer file.Close()
-
+	// log.Printf("Opened file '%s' for hashing\n", filename)
 	hash := sha256.New()
 	buffer := make([]byte, IO_BUFFER_SIZE)
 	if _, err := io.CopyBuffer(hash, file, buffer); err != nil {
+		file.Close()
+		l.Release()
+		// log.Printf("Released counter for file '%s'\n", filename)
 		ch <- MakeFileUnitResult{
 			FileUnit: FileUnit{},
 			Error:    err,
 		}
 	}
-
+	file.Close()
+	// log.Printf("Hashed file '%s'\n", filename)
+	l.Release()
+	// log.Printf("Released counter for file '%s'\n", filename)
 	ch <- MakeFileUnitResult{
 		FileUnit: FileUnit{
 			Name:     filename,
@@ -51,6 +62,7 @@ func MakeFileUnit(filename string, ch chan MakeFileUnitResult) {
 		},
 		Error: nil,
 	}
+
 }
 
 // ///////////////////////////////////////////////////////////////////////////////
