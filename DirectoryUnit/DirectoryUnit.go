@@ -44,7 +44,6 @@ func MakeDirectoryUnits(name string, fl *UnitLimiter.Limiter) MakeDirectoryUnits
 	entries, err := os.ReadDir(name)
 	if err != nil {
 		message := fmt.Sprintf("Error reading directory %s (%v)", name, err)
-		log.Panicln(message)
 		log.Println(message)
 		return MakeDirectoryUnitsResult{nil, errors.New(message)}
 	}

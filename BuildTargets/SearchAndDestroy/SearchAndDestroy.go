@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"time"
@@ -21,18 +21,18 @@ import (
 
 func main() {
 	if len(os.Args) != 3 {
-		fmt.Printf("Usage: %s <regular expression> <file>\n", os.Args[0])
+		log.Printf("Usage: %s <regular expression> <file>\n", os.Args[0])
 		os.Exit(1)
 	}
 	startTS := time.Now()
 	nFilesDeleted, nFilesNotDeleted, err := findAndDeleteFiles(os.Args[1], os.Args[2])
 	if err != nil {
-		fmt.Printf("Error %s after deleting %d files and skipping %d files\n",
+		log.Printf("Error %s after deleting %d files and skipping %d files\n",
 			err, nFilesDeleted, nFilesNotDeleted)
 		os.Exit(1)
 	}
 	endTS := time.Now()
-	fmt.Printf("Successfully deleted files %d and skipped %d files in %d ms (%.02f files/s) \n",
+	log.Printf("Successfully deleted files %d and skipped %d files in %d ms (%.02f files/s) \n",
 		nFilesDeleted, nFilesNotDeleted,
 		endTS.Sub(startTS)/time.Millisecond, float64(nFilesDeleted)/(float64(endTS.Sub(startTS))/float64(time.Second)))
 }
@@ -73,10 +73,10 @@ func findAndDeleteFiles(pattern string, fileName string) (int, int, error) {
 				// or still leaving some
 				for _, fname := range filesToRemove {
 					if nToBeKept == 0 {
-						fmt.Printf("Not deleting %s because there will be no such files left\n", fname)
+						log.Printf("Not deleting %s because there will be no such files left\n", fname)
 						nNotDeleted++
 					} else {
-						fmt.Printf("Deleting %s\n", fname)
+						log.Printf("Deleting %s\n", fname)
 						err := os.Remove(fname)
 						if err != nil {
 							return nDeleted, nNotDeleted, err
