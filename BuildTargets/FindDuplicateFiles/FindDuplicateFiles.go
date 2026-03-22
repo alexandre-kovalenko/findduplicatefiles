@@ -21,6 +21,7 @@ func main() {
 	}
 	if len(os.Args) == 3 {
 		resultFilename = os.Args[2]
+		_ = os.Remove(resultFilename)
 	}
 	// Since we are heavily I/O bound, let's schedule 8 goroutines per core
 	runtime.GOMAXPROCS(runtime.NumCPU() * 8)
