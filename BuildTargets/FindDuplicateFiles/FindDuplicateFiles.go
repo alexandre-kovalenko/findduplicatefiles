@@ -14,37 +14,48 @@ import (
 
 var resultFilename string
 
+func Usage() {
+	log.Printf("Usage: %s [-o <result filename>] <directory> [<directory>...]\n", os.Args[0])
+	os.Exit(-1)
+}
+
 func main() {
-	if (len(os.Args) != 2) && (len(os.Args) != 3) {
-		log.Printf("Usage: %s <directory> [<result filename>]\n", os.Args[0])
-		return
+	if len(os.Args) < 2 {
+		Usage()
 	}
-	if len(os.Args) == 3 {
+	if (os.Args[1] == "-o") && (len(os.Args) < 4) {
+		Usage()
+	}
+	firstDirectoryIndex := 1
+	if os.Args[1] == "-o" {
 		resultFilename = os.Args[2]
 		_ = os.Remove(resultFilename)
+		firstDirectoryIndex = 3
 	}
 	// Since we are heavily I/O bound, let's schedule 8 goroutines per core
 	runtime.GOMAXPROCS(runtime.NumCPU() * 8)
 	log.Printf("Running on %d cores, max procs is: %d\n", runtime.NumCPU(), runtime.GOMAXPROCS(0))
 	startTS := time.Now()
-	rootDirectory := os.Args[1]
 	fl := UnitLimiter.MakeUnitLimiter(1000, "file")
-	mdu := DirectoryUnit.MakeDirectoryUnits(rootDirectory, &fl)
-	dUnits, err := mdu.DirectoryUnits, mdu.Error
-	if err != nil {
-		log.Printf("Failed to enumerate %s (%v)\n", rootDirectory, err)
-		os.Exit(-1)
-	}
 	csMap := make(map[string][]string)
 	filesProcessed := 0
-	for _, du := range dUnits {
-		for _, f := range du.PlainFiles {
-			eSum := f.GetEncodedChecksum()
-			filesProcessed++
-			if _, ok := csMap[eSum]; ok {
-				csMap[eSum] = append(csMap[eSum], f.Name)
-			} else {
-				csMap[eSum] = []string{f.Name}
+	for i := firstDirectoryIndex; i < len(os.Args); i++ {
+		rootDirectory := os.Args[i]
+		mdu := DirectoryUnit.MakeDirectoryUnits(rootDirectory, &fl)
+		dUnits, err := mdu.DirectoryUnits, mdu.Error
+		if err != nil {
+			log.Printf("Failed to enumerate %s (%v)\n", rootDirectory, err)
+			os.Exit(-1)
+		}
+		for _, du := range dUnits {
+			for _, f := range du.PlainFiles {
+				eSum := f.GetEncodedChecksum()
+				filesProcessed++
+				if _, ok := csMap[eSum]; ok {
+					csMap[eSum] = append(csMap[eSum], f.Name)
+				} else {
+					csMap[eSum] = []string{f.Name}
+				}
 			}
 		}
 	}
