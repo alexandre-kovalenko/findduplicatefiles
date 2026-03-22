@@ -55,7 +55,6 @@ func PruneEmptyDirectories(startingPath string) (int, int, error) {
 				return pruned, 1, errors.New(message)
 			}
 			if nSurvivedChildren == 0 {
-				log.Printf("Pruning empty directory %s\n", subName)
 				err = os.Remove(subName)
 				if err != nil {
 					log.Printf("Error removing empty directory %s (%v)\n", subName, err)
